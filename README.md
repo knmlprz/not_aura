@@ -1,263 +1,351 @@
-# not_aura
+# not_aura — standardy zespołu
 
-Repozytorium **dokumentacji zespołowej** dla projektu roboczego **not_aura** — zasady pracy z **Git**, **styl kodu** oraz konwencje **ROS 2**.
+Zbiór **zasad inżynierskich** dla projektu roboczego **not_aura**: Git (GitFlow), pisanie kodu (Python / C++ / C#), OOP oraz paczki **ROS 2 Humble**. Materiał jest w plikach Markdown w `docs/` — poniżej skrót **wyciągnięty z treści tych dokumentów**, nie z „opisu repozytorium”.
 
-> **Uwaga:** To repozytorium **nie zawiera kodu węzłów ROS ani paczek do zbudowania**. Tu są wyłącznie wytyczne i szablony. Implementacja (paczki `not_aura_*`, launch, konfiguracja) żyje w osobnym workspace ROS 2, np. `not_aura_ws`.
-
-**Zdalne repo:** `git@github.com:knmlprz/not_aura.git`
+Pełne wersje: **[docs/README.md](docs/README.md)**.
 
 ---
 
 ## Spis treści
 
-- [Cel repozytorium](#cel-repozytorium)
-- [Struktura katalogów](#struktura-katalogów)
-- [Dokumentacja — szybkie linki](#dokumentacja--szybkie-linki)
-- [Stos technologiczny](#stos-technologiczny)
-- [Workspace ROS 2 (konwencja)](#workspace-ros-2-konwencja)
-- [Szybki start (workspace aplikacyjny)](#szybki-start-workspace-aplikacyjny)
-- [Git — skrót zasad](#git--skrót-zasad)
-- [Nowa paczka ROS 2 — checklist](#nowa-paczka-ros-2--checklist)
-- [Klonowanie i wkład w dokumentację](#klonowanie-i-wkład-w-dokumentację)
+1. [Git i wersjonowanie](#git-i-wersjonowanie)
+2. [Commity](#commity)
+3. [Code review i merge requesty](#code-review-i-merge-requesty)
+4. [Styl kodu](#styl-kodu)
+5. [Programowanie obiektowe](#programowanie-obiektowe)
+6. [ROS 2 — workspace i paczki](#ros-2--workspace-i-paczki)
+7. [Szablon README paczki](#szablon-readme-paczki)
+8. [Gdzie szukać szczegółów](#gdzie-szukać-szczegółów)
 
 ---
 
-## Cel repozytorium
+## Git i wersjonowanie
 
-Zbiór reguł i praktyk dla zespołu **not_aura**:
+### Branche (GitFlow)
 
-| Obszar | Opis |
+| Branch | Rola |
 |--------|------|
-| **version_control** | Git, branchowanie (GitFlow), commity, code review |
-| **code** | Styl Python / C++ / C#, zasady OOP (SOLID, KISS, DRY, YAGNI) |
-| **ros** | Układ paczek ROS 2 Humble, workspace, launch, parametry, szablony |
+| `main` | Produkcja — `HEAD` = stan gotowy do wdrożenia |
+| `develop` | Integracja — bieżący rozwój pod następne wydanie |
+| `feat/<nazwa>` | Nowa funkcja (z `develop`, merge z powrotem do `develop`) |
+| `release/<wersja>` | Przygotowanie wydania (np. `release/1.2`) |
+| `hotfix/<nazwa>` | Pilna poprawka produkcji |
 
-Szczegółowy przegląd: **[docs/README.md](docs/README.md)**.
+Przy wielu wersjach ROS 2: osobne branche deweloperskie, np. **`humble-dev`**, **`iron-dev`**.
 
----
+**Feature — start:**
 
-## Struktura katalogów
-
-```
-not_aura/
-├── README.md                 # ten plik
-└── docs/
-    ├── README.md             # spis dokumentacji zespołowej
-    ├── version_control/
-    │   ├── git_rules.md
-    │   ├── branching_strategy.md
-    │   ├── commits.md
-    │   └── cr.md
-    ├── code/
-    │   ├── code_style.md
-    │   └── object_programming.md
-    └── ros/
-        ├── ros_wiki.md       # paczki ROS 2
-        ├── new_ws.md         # workspace
-        ├── ros_readme.md     # szablon README paczki
-        └── .ros_gitignore    # szablon .gitignore dla paczek
+```bash
+git checkout -b feat/name develop
 ```
 
----
+**Feature — merge do develop (wymagana akceptacja zespołu):**
 
-## Dokumentacja — szybkie linki
-
-### Kontrola wersji
-
-| Temat | Plik |
-|-------|------|
-| Zasady Git, submoduły, LFS | [docs/version_control/git_rules.md](docs/version_control/git_rules.md) |
-| Strategia branchowania (GitFlow) | [docs/version_control/branching_strategy.md](docs/version_control/branching_strategy.md) |
-| Commity (Conventional Commits) | [docs/version_control/commits.md](docs/version_control/commits.md) |
-| Code review i merge requesty | [docs/version_control/cr.md](docs/version_control/cr.md) |
-
-### Kod
-
-| Temat | Plik |
-|-------|------|
-| Styl kodu (Python, C++, C#) | [docs/code/code_style.md](docs/code/code_style.md) |
-| Programowanie obiektowe | [docs/code/object_programming.md](docs/code/object_programming.md) |
-
-### ROS 2
-
-| Temat | Plik |
-|-------|------|
-| Tworzenie i układ paczek | [docs/ros/ros_wiki.md](docs/ros/ros_wiki.md) |
-| Organizacja workspace | [docs/ros/new_ws.md](docs/ros/new_ws.md) |
-| Szablon README paczki | [docs/ros/ros_readme.md](docs/ros/ros_readme.md) |
-| Szablon `.gitignore` | [docs/ros/.ros_gitignore](docs/ros/.ros_gitignore) |
-
----
-
-## Stos technologiczny
-
-| Warstwa | Wybór zespołu |
-|---------|----------------|
-| Middleware | **ROS 2 Humble** |
-| Build | **colcon** (`--symlink-install`) |
-| C++ | **ament_cmake**, C++17, `-Wall -Wextra -Wpedantic`, [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) |
-| Python | **ament**, PEP 8, formatter **black** |
-| Launch | Preferowane **`*.launch.py`** zamiast XML |
-| Parametry | `config/params_<nazwa_paczki>.yaml` |
-| Zależności | **rosdep** |
-| Dokumentacja kodu | **rosdoc2**, Doxygen (C++), Sphinx (Python) |
-| Duże pliki | **git LFS** (np. modele, meshe) |
-| Wiele wersji ROS | Osobne branche deweloperskie, np. `humble-dev`, `iron-dev` |
-
----
-
-## Workspace ROS 2 (konwencja)
-
-Paczki autorskie: prefiks **`not_aura_`**, np. `not_aura_localization`, `not_aura_navigation`.  
-Paczki zewnętrzne: **oryginalne nazwy** (łatwiejsze śledzenie źródła).
-
+```bash
+git checkout develop
+git merge --no-ff feat/name
+git branch -d feat/name
+git push origin develop
 ```
+
+Flaga **`--no-ff`** — zawsze osobny commit merge; zachowana historia gałęzi funkcji.
+
+### Zasady ogólne ([git_rules.md](docs/version_control/git_rules.md))
+
+- Język **angielski**: branche, commity, opisy wydań.
+- Prefiksy branchy: `main`, `develop`, `feat/`, `hotfix/`, `release/`.
+- Przykład nazwy: `feat/add_navigation_module`.
+- Scalanie do `main` łączy się z **release** kodu.
+
+### Submoduły
+
+```bash
+git clone --recurse-submodules git@github.com:knmlprz/not_aura.git
+
+git submodule add git@example.com:group/repository.git
+git submodule add git@example.com:group/repository.git --branch develop
+git submodule add git@example.com:group/repo.git /path/to/clone
+
+git submodule update --init --recursive
+git submodule update --remote
+git submodule foreach 'git checkout develop'
+```
+
+### Git LFS (duże pliki, np. `*.mesh`)
+
+```bash
+sudo apt install git-lfs
+git lfs track "*.mesh"
+# potem add + commit — wpis w .gitattributes
+```
+
+---
+
+## Commity
+
+Format **[Conventional Commits](https://www.conventionalcommits.org/)** ([commits.md](docs/version_control/commits.md)):
+
+```text
+<type>[optional scope]: <Description starting with capital letter>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+| `type` | Znaczenie |
+|--------|-----------|
+| `feat` | Nowa funkcja |
+| `fix` | Naprawa błędu |
+| `style` | Styl (bez zmiany logiki) |
+| `refactor` | Refaktoryzacja |
+| `test` | Testy |
+| `docs` | Dokumentacja |
+| `chore` | Utrzymanie (np. `.gitignore`) |
+
+**Przykłady z dokumentacji:**
+
+```text
+feat(lang): Add Polish language
+fix: Prevent racing of requests
+docs: Correct spelling of CHANGELOG
+feat!: Send an email when a product is shipped
+feat(api)!: Send an email when a product is shipped
+```
+
+Stopka ze zgłoszeniem: `[TASK-ID]` lub `Refs: #123`.
+
+```bash
+git add path/to/file
+git commit -m "feat(perception): Add person detector node"
+```
+
+---
+
+## Code review i merge requesty
+
+Źródło: [cr.md](docs/version_control/cr.md).
+
+**Recenzja obejmuje:**
+
+- **Nazewnictwo** — angielski, zrozumiałe, adekwatne do roli zmiennej/metody.
+- **Komentarze** — tylko potrzebne; brakujące uzupełnić.
+- **Funkcjonalność** — prostsze rozwiązania zgłaszać w review; czytelność OOP.
+- **Styl** — Python: **black**; reszta: [code_style.md](docs/code/code_style.md).
+- **Testy** — build i uruchomienie wg README paczki.
+- **Dokumentacja** — aktualne README (szablon), przepływ sygnałów, Doxygen / docstring.
+
+**Merge request — obowiązkowo:**
+
+| Cel merge | Wymaganie |
+|-----------|-----------|
+| → `develop` | Działa **lokalnie** na komputerze |
+| → `main` | Testy na **docelowym urządzeniu** |
+
+- MR możliwy do sensownego przejrzenia (bez „miliona linii”).
+- Min. **1 recenzent**, **nie autor**.
+- Merge po poprawkach i **co najmniej jednej akceptacji**.
+- Tytuł MR: np. `Feature add logging [TASK-ID]`.
+
+---
+
+## Styl kodu
+
+Wspólne dla wszystkich języków ([code_style.md](docs/code/code_style.md)):
+
+1. Zasady OOP — [object_programming.md](docs/code/object_programming.md).
+2. **Angielski** — identyfikatory, komentarze, dokumentacja.
+3. **Modułowość**.
+4. Wcięcie: **4 spacje**.
+
+### Python
+
+- [PEP 8](https://peps.python.org/pep-0008/) + formatter **[black](https://github.com/psf/black)**.
+- Pliki: `snake_case.py`.
+- Zmienne / funkcje: `snake_case`; klasy: `PascalCase`.
+- Prywatne: prefiks `_` (np. `_internal_value`).
+- Stałe: `UPPER_SNAKE_CASE`.
+- Dokumentacja: **docstring** (PEP 257).
+
+### C++
+
+- **C++17**, [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).
+- Pliki: `snake_case` w `src/` i `include/`.
+- Nagłówki: **`#pragma once`**.
+- Nawiasy funkcji/klas: **od nowej linii**.
+- Zmienne: `snake_case`; prywatne pola klasy: sufiks `_` (np. `table_name_`).
+- Stałe: `kMixedCase` (np. `kDaysInAWeek`); `#define` — `UPPER_SNAKE`.
+- Klasy / funkcje / metody: **`PascalCase`** (np. `AddTableEntry()`).
+- Dokumentacja: **Doxygen** w komentarzach nagłówkowych.
+
+### C#
+
+- [Unity C#](https://blog.unity.com/engine-platform/clean-up-your-code-how-to-create-your-own-c-code-style) + [.NET naming](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names).
+- Lokalne: `camelCase`; prywatne pola: `m_` + camelCase; właściwości / metody / klasy: `PascalCase`.
+- Interfejsy: prefiks **`I`** (np. `IWorkerQueue`).
+- Dokumentacja: **XML comments** → Doxygen.
+
+---
+
+## Programowanie obiektowe
+
+Źródło: [object_programming.md](docs/code/object_programming.md).
+
+| Skrót | Zasada |
+|-------|--------|
+| **S** | Single responsibility — jedna odpowiedzialność na klasę |
+| **O** | Open/closed — rozszerzaj, nie modyfikuj bez potrzeby |
+| **L** | Liskov — podklasy nie łamią kontraktu bazy |
+| **I** | Interface segregation — małe, dedykowane interfejsy |
+| **D** | Dependency inversion — zależność od abstrakcji |
+| **KISS** | Prosto, bez zbędnych udziwnień |
+| **DRY** | Bez powtórzeń w kodzie i procesie |
+| **YAGNI** | Nie implementuj „na zapas” |
+
+---
+
+## ROS 2 — workspace i paczki
+
+Źródło: [new_ws.md](docs/ros/new_ws.md), [ros_wiki.md](docs/ros/ros_wiki.md).
+
+### Workspace
+
+```text
 not_aura_ws/
-├── README.md
-├── build/          # generowane — nie commitować
-├── install/
-├── log/
+├── build/ install/ log/    # nie commitować
 └── src/
-    ├── actuation/          # aktuatory, napędy
-    ├── perception/         # lokalizacja, detekcja, itd.
+    ├── actuation/          # aktuatory
+    ├── perception/         # lokalizacja, detekcja, …
     ├── planning_control/   # nawigacja, sterowanie
     └── sensors/            # lidar, kamera, IMU, …
 ```
 
-Podział folderów w `src/` jest **umowny** — dostosuj go do projektu. Szczegóły: [docs/ros/new_ws.md](docs/ros/new_ws.md).
+- Paczki **autorskie**: prefiks **`not_aura_`** (np. `not_aura_localization`).
+- Paczki **zewnętrzne**: oryginalna nazwa upstream.
+- Paczki w `src/` — w repo lub jako **git submodule**.
 
-### Układ pojedynczej paczki (skrót)
+**Build:**
 
-**C++ (preferowany build: CMake):**
-
+```bash
+cd not_aura_ws
+source /opt/ros/humble/setup.bash
+rosdep install --from-paths src -y --ignore-src
+colcon build --symlink-install
+source install/setup.bash
 ```
+
+### Układ paczki C++ (preferowany: `ament_cmake`)
+
+```text
 <package_name>/
 ├── config/params_<package_name>.yaml
 ├── include/<package_name>/
-├── launch/<package_name>.launch.py
+├── launch/<package_name>.launch.py   # preferowane nad .xml
 ├── src/
 ├── CMakeLists.txt
 ├── package.xml
-└── README.md          # wg szablonu docs/ros/ros_readme.md
+└── README.md
 ```
 
-**Python:**
+### Układ paczki Python
 
-```
+```text
 <package_name>/
-├── config/
-├── launch/
-├── <package_name>/      # moduły Python
+├── config/params_<package_name>.yaml
+├── launch/<package_name>.launch.py
+├── <package_name>/__init__.py
 ├── scripts/
 ├── CMakeLists.txt
 ├── package.xml
 └── README.md
 ```
 
-Pełny opis: [docs/ros/ros_wiki.md](docs/ros/ros_wiki.md).
+Przy nowej paczce: skopiuj **[.ros_gitignore](docs/ros/.ros_gitignore)** do katalogu paczki.
 
----
+### Parametry YAML
 
-## Szybki start (workspace aplikacyjny)
+Domyślny plik: **`config/params_<package_name>.yaml`**. Struktura ROS 2:
+
+```yaml
+node_name:
+  ros__parameters:
+    bool_value: true
+    int_number: 5
+```
+
+### Launch
+
+**Preferowany:** `package_name.launch.py`
 
 ```bash
-# 1. Workspace
-mkdir -p ~/not_aura_ws/src && cd ~/not_aura_ws
-
-# 2. Dodaj paczki (clone / submodule) do src/
-# git submodule add ... src/perception/not_aura_...
-
-# 3. Zależności systemowe i ROS
-source /opt/ros/humble/setup.bash
-rosdep install --from-paths src -y --ignore-src
-
-# 4. Build
-colcon build --symlink-install
-source install/setup.bash
-
-# 5. Uruchomienie (przykład)
-ros2 launch <package_name> <package_name>.launch.py
-ros2 launch <package_name> <package_name>.launch.py param:=wartosc
+ros2 launch package_name package_name.launch.py
+ros2 launch package_name package_name.launch.py arg_name:=value
 ```
+
+Minimalny szkielet (z dokumentacji):
+
+```python
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, FindPackageShare
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    ld = LaunchDescription()
+    # DeclareLaunchArgument, Node(package=..., executable=...), ld.add_action(...)
+    return ld
+```
+
+`.launch.xml` — tylko przy migracji z ROS 1.
+
+### CMake (fragment wymagań)
+
+- `cmake_minimum_required`, `project()`, **C++14+** (w przykładzie; styl C++17 w code_style).
+- Flagi: **`-Wall -Wextra -Wpedantic`** (GCC/Clang).
+- `find_package(ament_cmake REQUIRED)`, `ament_target_dependencies`, `install`, `ament_package()`.
+
+### Dokumentacja paczek
+
+- **rosdoc2** — generowanie docs workspace.
+- C++: Doxygen; Python: Sphinx / docstring.
 
 ---
 
-## Git — skrót zasad
+## Szablon README paczki
 
-### Branche
+Każda paczka ma własny `README.md` wg [ros_readme.md](docs/ros/ros_readme.md):
 
-| Branch | Rola |
-|--------|------|
-| `main` | Produkcja, stabilny kod |
-| `develop` | Integracja, bieżący rozwój |
-| `feat/<opis>` | Nowa funkcja (z `develop`) |
-| `release/<wersja>` | Przygotowanie wydania |
-| `hotfix/<opis>` | Pilna poprawka produkcji |
+- Project structure  
+- Dependencies (subscribers / publishers / services — tabele topiców)  
+- Installation (`colcon build --symlink-install`)  
+- Parameters  
+- Usage (`ros2 launch …`)  
+- Class diagram, visuals, roadmap, contributors  
 
-Scalanie funkcji do `develop`: **`git merge --no-ff`**, wymagana akceptacja zespołu.  
-Nazwy branchy i commity: **po angielsku**.
+---
 
-### Commity
+## Gdzie szukać szczegółów
 
-Format **[Conventional Commits](https://www.conventionalcommits.org/)**, np.:
+| Temat | Plik |
+|-------|------|
+| Git, submoduły, LFS | [docs/version_control/git_rules.md](docs/version_control/git_rules.md) |
+| GitFlow (release, hotfix) | [docs/version_control/branching_strategy.md](docs/version_control/branching_strategy.md) |
+| Commity | [docs/version_control/commits.md](docs/version_control/commits.md) |
+| Code review | [docs/version_control/cr.md](docs/version_control/cr.md) |
+| Styl kodu | [docs/code/code_style.md](docs/code/code_style.md) |
+| SOLID, KISS, DRY, YAGNI | [docs/code/object_programming.md](docs/code/object_programming.md) |
+| Paczki ROS 2 | [docs/ros/ros_wiki.md](docs/ros/ros_wiki.md) |
+| Workspace | [docs/ros/new_ws.md](docs/ros/new_ws.md) |
+| Szablon README paczki | [docs/ros/ros_readme.md](docs/ros/ros_readme.md) |
 
-```text
-feat(localization): add AMCL fallback
-fix(camera): correct image encoding on OAK
-docs(ros): update launch parameters table
-```
+---
 
-Więcej: [docs/version_control/commits.md](docs/version_control/commits.md).
+## Uwaga o zakresie tego katalogu
 
-### Merge requesty
+W **`/home/rafal/not_aura`** nie ma plików `package.xml`, węzłów ROS ani `CMakeLists.txt` z logiką robota — są **wytyczne zespołu** w Markdown. Implementacja (np. `not_aura_*` w `not_aura_ws`) powstaje w osobnych repozytoriach / submodułach zgodnie z powyższymi regułami.
 
-- Do **`develop`**: test lokalny, review, MR.
-- Do **`main`**: test na docelowym sprzęcie, review, MR.
-
-Szczegóły: [docs/version_control/cr.md](docs/version_control/cr.md).
-
-### Submoduły i LFS
+**Klonowanie dokumentacji:**
 
 ```bash
 git clone --recurse-submodules git@github.com:knmlprz/not_aura.git
 ```
-
-Duże assety (modele 3D, mapy): **git LFS** — [docs/version_control/git_rules.md](docs/version_control/git_rules.md).
-
----
-
-## Nowa paczka ROS 2 — checklist
-
-1. Nazwa z prefiksem `not_aura_` (jeśli paczka autorska).
-2. Struktura katalogów wg [ros_wiki.md](docs/ros/ros_wiki.md).
-3. Launch w Pythonie: `<package_name>.launch.py`.
-4. Parametry: `config/params_<package_name>.yaml`.
-5. Skopiuj [.ros_gitignore](docs/ros/.ros_gitignore) do paczki.
-6. README paczki z [ros_readme.md](docs/ros/ros_readme.md) — topici, serwisy, instalacja, uruchomienie.
-7. Styl kodu: [code_style.md](docs/code/code_style.md).
-
----
-
-## Klonowanie i wkład w dokumentację
-
-```bash
-git clone --recurse-submodules git@github.com:knmlprz/not_aura.git
-cd not_aura
-```
-
-**Zmiana zasad zespołu:** edytuj odpowiedni plik w `docs/` i zrób MR do `develop` (opis zmiany w commicie: `docs(...): ...`).
-
-**Nowy członek zespołu:** zacznij od [docs/README.md](docs/README.md) → Git → styl kodu → ROS wiki.
-
----
-
-## Powiązane repozytoria
-
-Kod runtime (węzły, launch, hardware) **nie jest w tym repo**. Szukaj paczek `not_aura_*` w workspace zespołu lub na GitHubie organizacji **knmlprz**.  
-Ten repozytorium definiuje **jak** pisać i organizować ten kod — nie **co** aktualnie jest wdrożone na robocie.
-
----
-
-## Licencja
-
-Plik `LICENSE` nie jest zdefiniowany w tym repozytorium — uzupełnij, jeśli wymagane przez organizację.
