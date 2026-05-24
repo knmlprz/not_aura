@@ -1,351 +1,368 @@
-# not_aura — standardy zespołu
+# ros2_projects_ws
 
-Zbiór **zasad inżynierskich** dla projektu roboczego **not_aura**: Git (GitFlow), pisanie kodu (Python / C++ / C#), OOP oraz paczki **ROS 2 Humble**. Materiał jest w plikach Markdown w `docs/` — poniżej skrót **wyciągnięty z treści tych dokumentów**, nie z „opisu repozytorium”.
+Minimalny **workspace ROS 2** z gotowym środowiskiem developerskim: kontener **Distrobox**, **CycloneDDS**, makro **`build`** i **`diag`**.  
+Katalog **`src/`** służy do paczek ROS (własnych lub podlinkowanych / submodułów). Artefakty buildu są rozdzielone per dystrybucja: `build_humble`, `install_humble`, `log_humble` (analogicznie dla `jazzy`).
 
-Pełne wersje: **[docs/README.md](docs/README.md)**.
+Powiązany projekt aplikacyjny (G1, XREAL, teleop, wirtualna kamera): **`~/Web_Speech_remote_control`** (dostosuj ścieżkę do swojego klonu).
 
 ---
 
 ## Spis treści
 
-1. [Git i wersjonowanie](#git-i-wersjonowanie)
-2. [Commity](#commity)
-3. [Code review i merge requesty](#code-review-i-merge-requesty)
-4. [Styl kodu](#styl-kodu)
-5. [Programowanie obiektowe](#programowanie-obiektowe)
-6. [ROS 2 — workspace i paczki](#ros-2--workspace-i-paczki)
-7. [Szablon README paczki](#szablon-readme-paczki)
-8. [Gdzie szukać szczegółów](#gdzie-szukać-szczegółów)
+- [ros2\_projects\_ws](#ros2_projects_ws)
+  - [Spis treści](#spis-treści)
+  - [Struktura katalogów](#struktura-katalogów)
+  - [Wymagania](#wymagania)
+  - [Start kontenera (Distrobox)](#start-kontenera-distrobox)
+  - [Środowisko ROS w kontenerze](#środowisko-ros-w-kontenerze)
+  - [Budowanie paczek (`build`)](#budowanie-paczek-build)
+  - [Diagnostyka (`diag`)](#diagnostyka-diag)
+  - [Gdzie trzymać kod ROS](#gdzie-trzymać-kod-ros)
+  - [Uruchamianie — G1 + teleop + wirtualna kamera](#uruchamianie--g1--teleop--wirtualna-kamera)
+    - [1. Przygotowanie środowiska](#1-przygotowanie-środowiska)
+    - [2. Bringup G1 (RViz, OAK, węzły — funkcje domyślnie wyłączone)](#2-bringup-g1-rviz-oak-węzły--funkcje-domyślnie-wyłączone)
+    - [3. Wirtualna kamera IMU (gogle XREAL) — osobny terminal](#3-wirtualna-kamera-imu-gogle-xreal--osobny-terminal)
+    - [4. Detekcja ludzi + czerwone markery w scenie AR — osobny terminal](#4-detekcja-ludzi--czerwone-markery-w-scenie-ar--osobny-terminal)
+    - [5. Stream kamery laptopa (jeśli nie używasz OAK na ekranie wirtualnym)](#5-stream-kamery-laptopa-jeśli-nie-używasz-oak-na-ekranie-wirtualnym)
+    - [6. Stream pulpitu (C++, niskie opóźnienie)](#6-stream-pulpitu-c-niskie-opóźnienie)
+  - [Serwisy po starcie bringupu (G1)](#serwisy-po-starcie-bringupu-g1)
+  - [teleop\_moving\_window — węzły AR / kamery](#teleop_moving_window--węzły-ar--kamery)
+  - [Podgląd obrazów](#podgląd-obrazów)
+  - [RViz (G1 + OAK)](#rviz-g1--oak)
+  - [Powiązane dokumenty](#powiązane-dokumenty)
 
 ---
 
-## Git i wersjonowanie
-
-### Branche (GitFlow)
-
-| Branch | Rola |
-|--------|------|
-| `main` | Produkcja — `HEAD` = stan gotowy do wdrożenia |
-| `develop` | Integracja — bieżący rozwój pod następne wydanie |
-| `feat/<nazwa>` | Nowa funkcja (z `develop`, merge z powrotem do `develop`) |
-| `release/<wersja>` | Przygotowanie wydania (np. `release/1.2`) |
-| `hotfix/<nazwa>` | Pilna poprawka produkcji |
-
-Przy wielu wersjach ROS 2: osobne branche deweloperskie, np. **`humble-dev`**, **`iron-dev`**.
-
-**Feature — start:**
-
-```bash
-git checkout -b feat/name develop
-```
-
-**Feature — merge do develop (wymagana akceptacja zespołu):**
-
-```bash
-git checkout develop
-git merge --no-ff feat/name
-git branch -d feat/name
-git push origin develop
-```
-
-Flaga **`--no-ff`** — zawsze osobny commit merge; zachowana historia gałęzi funkcji.
-
-### Zasady ogólne ([git_rules.md](docs/version_control/git_rules.md))
-
-- Język **angielski**: branche, commity, opisy wydań.
-- Prefiksy branchy: `main`, `develop`, `feat/`, `hotfix/`, `release/`.
-- Przykład nazwy: `feat/add_navigation_module`.
-- Scalanie do `main` łączy się z **release** kodu.
-
-### Submoduły
-
-```bash
-git clone --recurse-submodules git@github.com:knmlprz/not_aura.git
-
-git submodule add git@example.com:group/repository.git
-git submodule add git@example.com:group/repository.git --branch develop
-git submodule add git@example.com:group/repo.git /path/to/clone
-
-git submodule update --init --recursive
-git submodule update --remote
-git submodule foreach 'git checkout develop'
-```
-
-### Git LFS (duże pliki, np. `*.mesh`)
-
-```bash
-sudo apt install git-lfs
-git lfs track "*.mesh"
-# potem add + commit — wpis w .gitattributes
-```
-
----
-
-## Commity
-
-Format **[Conventional Commits](https://www.conventionalcommits.org/)** ([commits.md](docs/version_control/commits.md)):
+## Struktura katalogów
 
 ```text
-<type>[optional scope]: <Description starting with capital letter>
-
-[optional body]
-
-[optional footer(s)]
+ros2_projects_ws/
+├── README.md
+├── scripts/
+│   ├── distrobox          # wejście do kontenera (humble | jazzy)
+│   ├── ros2_env.bash        # ROS_DISTRO, CycloneDDS, source /opt/ros, makra
+│   ├── macros.bash          # build, diag
+│   └── cyclone-dds.xml      # konfiguracja DDS
+├── src/                     # paczki ROS (package.xml w podkatalogach)
+├── build_<distro>/          # generowane przez colcon
+├── install_<distro>/
+└── log_<distro>/
 ```
 
-| `type` | Znaczenie |
-|--------|-----------|
-| `feat` | Nowa funkcja |
-| `fix` | Naprawa błędu |
-| `style` | Styl (bez zmiany logiki) |
-| `refactor` | Refaktoryzacja |
-| `test` | Testy |
-| `docs` | Dokumentacja |
-| `chore` | Utrzymanie (np. `.gitignore`) |
+---
 
-**Przykłady z dokumentacji:**
+## Wymagania
 
-```text
-feat(lang): Add Polish language
-fix: Prevent racing of requests
-docs: Correct spelling of CHANGELOG
-feat!: Send an email when a product is shipped
-feat(api)!: Send an email when a product is shipped
-```
+Na hoście:
 
-Stopka ze zgłoszeniem: `[TASK-ID]` lub `Refs: #123`.
+- [Docker](https://www.docker.com) lub [Podman](https://podman.io)
+- [Distrobox](https://github.com/89luca89/distrobox)
+
+W obrazie kontenera (instalowane przy tworzeniu / przez `build`):
+
+- ROS 2 **Humble** lub **Jazzy** (wybór przy `./scripts/distrobox`)
+- `rosdep`, `colcon`, `python3-pip`
+
+---
+
+## Start kontenera (Distrobox)
+
+Z katalogu `ros2_projects_ws`:
 
 ```bash
-git add path/to/file
-git commit -m "feat(perception): Add person detector node"
+./scripts/distrobox humble
+# lub
+./scripts/distrobox jazzy
 ```
 
----
+Skrypt:
 
-## Code review i merge requesty
+- tworzy / wchodzi do kontenera `ros2_projects_ws_<distro>`,
+- montuje workspace,
+- **jednorazowo** dopisuje do `~/.bashrc` w kontenerze hook ładujący `scripts/ros2_env.bash`,
+- otwiera interaktywną powłokę bash.
 
-Źródło: [cr.md](docs/version_control/cr.md).
-
-**Recenzja obejmuje:**
-
-- **Nazewnictwo** — angielski, zrozumiałe, adekwatne do roli zmiennej/metody.
-- **Komentarze** — tylko potrzebne; brakujące uzupełnić.
-- **Funkcjonalność** — prostsze rozwiązania zgłaszać w review; czytelność OOP.
-- **Styl** — Python: **black**; reszta: [code_style.md](docs/code/code_style.md).
-- **Testy** — build i uruchomienie wg README paczki.
-- **Dokumentacja** — aktualne README (szablon), przepływ sygnałów, Doxygen / docstring.
-
-**Merge request — obowiązkowo:**
-
-| Cel merge | Wymaganie |
-|-----------|-----------|
-| → `develop` | Działa **lokalnie** na komputerze |
-| → `main` | Testy na **docelowym urządzeniu** |
-
-- MR możliwy do sensownego przejrzenia (bez „miliona linii”).
-- Min. **1 recenzent**, **nie autor**.
-- Merge po poprawkach i **co najmniej jednej akceptacji**.
-- Tytuł MR: np. `Feature add logging [TASK-ID]`.
+Opcjonalnie: własny obraz Docker — zmienna `ROS_DOCKER_IMAGE` przed uruchomieniem skryptu.
 
 ---
 
-## Styl kodu
+## Środowisko ROS w kontenerze
 
-Wspólne dla wszystkich języków ([code_style.md](docs/code/code_style.md)):
+Plik `scripts/ros2_env.bash` ustawia (w każdej nowej powłoce w kontenerze):
 
-1. Zasady OOP — [object_programming.md](docs/code/object_programming.md).
-2. **Angielski** — identyfikatory, komentarze, dokumentacja.
-3. **Modułowość**.
-4. Wcięcie: **4 spacje**.
+| Zmienna / plik | Wartość |
+|----------------|---------|
+| `ROS_DISTRO` | `humble` lub `jazzy` |
+| `ROS_DOMAIN_ID` | domyślnie `0` (jeśli nie ustawione na hoście) |
+| `RMW_IMPLEMENTATION` | `rmw_cyclonedds_cpp` |
+| `CYCLONEDDS_URI` | `file://.../scripts/cyclone-dds.xml` |
+| `ROS2_PROJECTS_WS_ROOT` | katalog główny workspace |
 
-### Python
-
-- [PEP 8](https://peps.python.org/pep-0008/) + formatter **[black](https://github.com/psf/black)**.
-- Pliki: `snake_case.py`.
-- Zmienne / funkcje: `snake_case`; klasy: `PascalCase`.
-- Prywatne: prefiks `_` (np. `_internal_value`).
-- Stałe: `UPPER_SNAKE_CASE`.
-- Dokumentacja: **docstring** (PEP 257).
-
-### C++
-
-- **C++17**, [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).
-- Pliki: `snake_case` w `src/` i `include/`.
-- Nagłówki: **`#pragma once`**.
-- Nawiasy funkcji/klas: **od nowej linii**.
-- Zmienne: `snake_case`; prywatne pola klasy: sufiks `_` (np. `table_name_`).
-- Stałe: `kMixedCase` (np. `kDaysInAWeek`); `#define` — `UPPER_SNAKE`.
-- Klasy / funkcje / metody: **`PascalCase`** (np. `AddTableEntry()`).
-- Dokumentacja: **Doxygen** w komentarzach nagłówkowych.
-
-### C#
-
-- [Unity C#](https://blog.unity.com/engine-platform/clean-up-your-code-how-to-create-your-own-c-code-style) + [.NET naming](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names).
-- Lokalne: `camelCase`; prywatne pola: `m_` + camelCase; właściwości / metody / klasy: `PascalCase`.
-- Interfejsy: prefiks **`I`** (np. `IWorkerQueue`).
-- Dokumentacja: **XML comments** → Doxygen.
-
----
-
-## Programowanie obiektowe
-
-Źródło: [object_programming.md](docs/code/object_programming.md).
-
-| Skrót | Zasada |
-|-------|--------|
-| **S** | Single responsibility — jedna odpowiedzialność na klasę |
-| **O** | Open/closed — rozszerzaj, nie modyfikuj bez potrzeby |
-| **L** | Liskov — podklasy nie łamią kontraktu bazy |
-| **I** | Interface segregation — małe, dedykowane interfejsy |
-| **D** | Dependency inversion — zależność od abstrakcji |
-| **KISS** | Prosto, bez zbędnych udziwnień |
-| **DRY** | Bez powtórzeń w kodzie i procesie |
-| **YAGNI** | Nie implementuj „na zapas” |
-
----
-
-## ROS 2 — workspace i paczki
-
-Źródło: [new_ws.md](docs/ros/new_ws.md), [ros_wiki.md](docs/ros/ros_wiki.md).
-
-### Workspace
-
-```text
-not_aura_ws/
-├── build/ install/ log/    # nie commitować
-└── src/
-    ├── actuation/          # aktuatory
-    ├── perception/         # lokalizacja, detekcja, …
-    ├── planning_control/   # nawigacja, sterowanie
-    └── sensors/            # lidar, kamera, IMU, …
-```
-
-- Paczki **autorskie**: prefiks **`not_aura_`** (np. `not_aura_localization`).
-- Paczki **zewnętrzne**: oryginalna nazwa upstream.
-- Paczki w `src/` — w repo lub jako **git submodule**.
-
-**Build:**
+Źródła: `/opt/ros/$ROS_DISTRO/local_setup.bash` oraz `scripts/macros.bash` (`build`, `diag`).
 
 ```bash
-cd not_aura_ws
+export ROS_DOMAIN_ID=0   # ten sam ID na wszystkich maszynach w sieci ROS
+```
+
+---
+
+## Budowanie paczek (`build`)
+
+Makro **`build`** działa w **bieżącym katalogu**, który musi zawierać `./src`.
+
+Kroki:
+
+1. `rosdep install` z `./src`
+2. APT z plików `apt_packages.txt` w paczkach
+3. pip z plików `requirements.txt` w paczkach
+4. `colcon build --base-paths ./src --symlink-install`
+5. artefakty w `build_$ROS_DISTRO`, `install_$ROS_DISTRO`, `log_$ROS_DISTRO`
+6. automatyczne `source install_*/local_setup.bash`
+
+```bash
+cd /path/to/workspace/with/src
+
+# wszystkie paczki w src/
+build
+
+# wybrane paczki (nazwy colcon)
+build teleop_moving_window teleop_bringup
+```
+
+---
+
+## Diagnostyka (`diag`)
+
+```bash
+diag
+```
+
+Sprawdza m.in.: `ROS_DISTRO`, `ROS_DOMAIN_ID`, `RMW_IMPLEMENTATION`, `CYCLONEDDS_URI`, marker `_ROS2_PROJECTS_WS_ENV_LOADED`.
+
+---
+
+## Gdzie trzymać kod ROS
+
+Ten workspace **nie zawiera** logiki robota — dostarcza **narzędzia build/run**.
+
+Typowy układ z **Web_Speech_remote_control**:
+
+```bash
+# przykład: symlink paczek do src/ (w kontenerze lub na hoście)
+cd ~/not_aura/ros2_projects_ws/src
+ln -s ~/Web_Speech_remote_control/teleop_ws/src/teleop_moving_window .
+ln -s ~/Web_Speech_remote_control/teleop_ws/src/teleop_bringup .
+# … pozostałe paczki z teleop_ws/src według potrzeb
+
+cd ~/not_aura/ros2_projects_ws
+build teleop_moving_window teleop_bringup
+source install_humble/setup.bash
+```
+
+Alternatywa: budować bezpośrednio w `~/Web_Speech_remote_control/teleop_ws` (colcon klasyczny) i tylko **`source`** overlay z tego workspace — ważne, żeby **`ROS_DOMAIN_ID`** i **RMW** były spójne.
+
+---
+
+## Uruchamianie — G1 + teleop + wirtualna kamera
+
+Poniżej **połączony** przepływ z `Web_Speech_remote_control/README_g1.md` (bringup G1, XREAL, OAK) oraz `teleop_ws/src/teleop_moving_window/README.md` (wirtualna kamera IMU, detekcja ludzi, streamy).
+
+### 1. Przygotowanie środowiska
+
+```bash
+# kontener ROS (zalecane)
+cd ~/not_aura/ros2_projects_ws
+./scripts/distrobox humble
+
+# w kontenerze — build teleop (ścieżka do Twojego klonu)
+cd ~/Web_Speech_remote_control/teleop_ws
 source /opt/ros/humble/setup.bash
-rosdep install --from-paths src -y --ignore-src
-colcon build --symlink-install
+colcon build --packages-select teleop_moving_window teleop_bringup teleop_hand_eye_tracking teleop_xreal_oak
+source install/setup.bash
+
+export ROS_DOMAIN_ID=0
+```
+
+### 2. Bringup G1 (RViz, OAK, węzły — funkcje domyślnie wyłączone)
+
+**Symulacja** (bez fizycznego robota):
+
+```bash
+ros2 launch teleop_bringup g1_arm_control.launch.py \
+  interface:=wlp4s0 \
+  publish_joint_states:=false \
+  use_robot:=false
+```
+
+**Prawy robot**:
+
+```bash
+ros2 launch teleop_bringup g1_arm_control.launch.py \
+  interface:=eno1 \
+  publish_joint_states:=true \
+  use_robot:=true
+```
+
+Po starcie działają m.in. RViz (model G1 + kamera OAK), ale **śledzenie rąk, IMU XREAL i tułów** wymagają włączenia serwisami (sekcja niżej).
+
+### 3. Wirtualna kamera IMU (gogle XREAL) — osobny terminal
+
+Wymaga **włączonego IMU** (`/xreal/imu/data`) — patrz serwis `enable_imu`.
+
+```bash
+source ~/Web_Speech_remote_control/teleop_ws/install/setup.bash
+export ROS_DOMAIN_ID=0
+
+# obraz z kamery OAK na „ekranie” w scenie 3D
+python3 ~/Web_Speech_remote_control/teleop_ws/src/teleop_moving_window/imu_virtual_camera.py \
+  --ros-args -r /laptop/camera/image_raw:=/oak/rgb/image_raw
+```
+
+Opcjonalnie — **wyczyść domyślne kostki** w scenie (zostają tylko markery z detektora ludzi):
+
+```bash
+ros2 service call /xreal/virtual_camera/clear_all_blocks std_srvs/srv/Trigger
+```
+
+Czarne tło:
+
+```bash
+ros2 service call /xreal/virtual_camera/set_black_background std_srvs/srv/SetBool "{data: true}"
+```
+
+### 4. Detekcja ludzi + czerwone markery w scenie AR — osobny terminal
+
+```bash
+source ~/Web_Speech_remote_control/teleop_ws/install/setup.bash
+export ROS_DOMAIN_ID=0
+
+python3 ~/Web_Speech_remote_control/teleop_ws/src/teleop_moving_window/people_tracker_node.py
+```
+
+Publikuje m.in. `/person/nearest`, `/person/count`, oraz markery na `/xreal/virtual_scene/add_block` (czerwone kostki nad wykrytymi osobami, pozycja z IMU + głębia OAK).
+
+### 5. Stream kamery laptopa (jeśli nie używasz OAK na ekranie wirtualnym)
+
+```bash
+python3 ~/Web_Speech_remote_control/teleop_ws/src/teleop_moving_window/laptop_camera_stream_node.py
+# topic: /laptop/camera/image_raw
+```
+
+### 6. Stream pulpitu (C++, niskie opóźnienie)
+
+Po `colcon build` paczki `teleop_moving_window`:
+
+```bash
+source ~/Web_Speech_remote_control/teleop_ws/install/setup.bash
+ros2 run teleop_moving_window desktop_screen_stream_node
+# domyślnie: /desktop/screen/image_raw
+```
+
+Przykład — monitor wirtualny **vkms**:
+
+```bash
+sudo modprobe vkms
+xrandr --output Virtual-2-1 --mode 1920x1080 --left-of eDP
+
+ros2 run teleop_moving_window desktop_screen_stream_node --ros-args \
+  -p monitor_name:=Virtual-2-1 \
+  -p primary_monitor_only:=true \
+  -p prefer_internal_monitor:=false \
+  -p fps:=60.0
+```
+
+---
+
+## Serwisy po starcie bringupu (G1)
+
+Źródło: `Web_Speech_remote_control/README_g1.md`. Kolejność włączania dowolna; dla tułowia sensowne: najpierw IMU, potem head→torso.
+
+```bash
+# Ręce: mapowanie /hand/* → /g1pilot/hand_goal/*
+ros2 service call /hand_tracker_to_arm_goal/set_enabled std_srvs/srv/SetBool "{data: true}"
+
+# IMU z okularów XREAL → /xreal/imu/data
+ros2 service call /enable_imu std_srvs/srv/SetBool "{data: true}"
+
+# Tułów według orientacji głowy (wymaga IMU)
+ros2 service call /enable_head_to_torso std_srvs/srv/SetBool "{data: true}"
+```
+
+Kalibracja żyroskopu IMU (przed pierwszym użyciem):
+
+```bash
+ros2 launch teleop_xreal_oak xreal_imu_calib.launch.py
+```
+
+Wyłączenie: te same serwisy z `{data: false}`.
+
+---
+
+## teleop_moving_window — węzły AR / kamery
+
+| Komponent | Plik / executable | Główne topici |
+|-----------|-------------------|---------------|
+| Wirtualna kamera IMU | `imu_virtual_camera.py` | pub: `/xreal/camera/image_raw`, `/xreal/virtual_scene/markers`; sub: `/xreal/imu/data`, `/laptop/camera/image_raw`, `/xreal/virtual_scene/add_block` |
+| Detekcja ludzi (YOLO + depth) | `people_tracker_node.py` | pub: `/person/*`, markery sceny |
+| Stream laptopa | `laptop_camera_stream_node.py` | pub: `/laptop/camera/image_raw` |
+| Stream desktopu | `desktop_screen_stream_node` | pub: `/desktop/screen/image_raw` |
+| Viewer desktopu | `desktop_screen_viewer_node` | sub: obraz z topicu |
+| Okno X11 pomocnicze | `virtual_display_window_node` | (nie jest monitorem systemowym) |
+
+Build paczki:
+
+```bash
+cd ~/Web_Speech_remote_control/teleop_ws
+colcon build --packages-select teleop_moving_window
 source install/setup.bash
 ```
 
-### Układ paczki C++ (preferowany: `ament_cmake`)
+Zależności APT (m.in. OpenCV): `teleop_moving_window/apt_packages.txt` — instalowane także przez makro `build`, jeśli paczka leży w `./src`.
 
-```text
-<package_name>/
-├── config/params_<package_name>.yaml
-├── include/<package_name>/
-├── launch/<package_name>.launch.py   # preferowane nad .xml
-├── src/
-├── CMakeLists.txt
-├── package.xml
-└── README.md
-```
+Szczegóły parametrów, serwisów i `add_block`:  
+`Web_Speech_remote_control/teleop_ws/src/teleop_moving_window/README.md`.
 
-### Układ paczki Python
+---
 
-```text
-<package_name>/
-├── config/params_<package_name>.yaml
-├── launch/<package_name>.launch.py
-├── <package_name>/__init__.py
-├── scripts/
-├── CMakeLists.txt
-├── package.xml
-└── README.md
-```
-
-Przy nowej paczce: skopiuj **[.ros_gitignore](docs/ros/.ros_gitignore)** do katalogu paczki.
-
-### Parametry YAML
-
-Domyślny plik: **`config/params_<package_name>.yaml`**. Struktura ROS 2:
-
-```yaml
-node_name:
-  ros__parameters:
-    bool_value: true
-    int_number: 5
-```
-
-### Launch
-
-**Preferowany:** `package_name.launch.py`
+## Podgląd obrazów
 
 ```bash
-ros2 launch package_name package_name.launch.py
-ros2 launch package_name package_name.launch.py arg_name:=value
+ros2 run rqt_image_view rqt_image_view
 ```
 
-Minimalny szkielet (z dokumentacji):
+Typowe topici:
 
-```python
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, FindPackageShare
-from launch_ros.actions import Node
+- `/xreal/camera/image_raw` — wirtualna kamera (gogle)
+- `/oak/rgb/image_raw` — kamera OAK
+- `/desktop/screen/image_raw` — pulpit
+- `/laptop/camera/image_raw` — kamera laptopa
 
-def generate_launch_description():
-    ld = LaunchDescription()
-    # DeclareLaunchArgument, Node(package=..., executable=...), ld.add_action(...)
-    return ld
-```
-
-`.launch.xml` — tylko przy migracji z ROS 1.
-
-### CMake (fragment wymagań)
-
-- `cmake_minimum_required`, `project()`, **C++14+** (w przykładzie; styl C++17 w code_style).
-- Flagi: **`-Wall -Wextra -Wpedantic`** (GCC/Clang).
-- `find_package(ament_cmake REQUIRED)`, `ament_target_dependencies`, `install`, `ament_package()`.
-
-### Dokumentacja paczek
-
-- **rosdoc2** — generowanie docs workspace.
-- C++: Doxygen; Python: Sphinx / docstring.
-
----
-
-## Szablon README paczki
-
-Każda paczka ma własny `README.md` wg [ros_readme.md](docs/ros/ros_readme.md):
-
-- Project structure  
-- Dependencies (subscribers / publishers / services — tabele topiców)  
-- Installation (`colcon build --symlink-install`)  
-- Parameters  
-- Usage (`ros2 launch …`)  
-- Class diagram, visuals, roadmap, contributors  
-
----
-
-## Gdzie szukać szczegółów
-
-| Temat | Plik |
-|-------|------|
-| Git, submoduły, LFS | [docs/version_control/git_rules.md](docs/version_control/git_rules.md) |
-| GitFlow (release, hotfix) | [docs/version_control/branching_strategy.md](docs/version_control/branching_strategy.md) |
-| Commity | [docs/version_control/commits.md](docs/version_control/commits.md) |
-| Code review | [docs/version_control/cr.md](docs/version_control/cr.md) |
-| Styl kodu | [docs/code/code_style.md](docs/code/code_style.md) |
-| SOLID, KISS, DRY, YAGNI | [docs/code/object_programming.md](docs/code/object_programming.md) |
-| Paczki ROS 2 | [docs/ros/ros_wiki.md](docs/ros/ros_wiki.md) |
-| Workspace | [docs/ros/new_ws.md](docs/ros/new_ws.md) |
-| Szablon README paczki | [docs/ros/ros_readme.md](docs/ros/ros_readme.md) |
-
----
-
-## Uwaga o zakresie tego katalogu
-
-W **`/home/rafal/not_aura`** nie ma plików `package.xml`, węzłów ROS ani `CMakeLists.txt` z logiką robota — są **wytyczne zespołu** w Markdown. Implementacja (np. `not_aura_*` w `not_aura_ws`) powstaje w osobnych repozytoriach / submodułach zgodnie z powyższymi regułami.
-
-**Klonowanie dokumentacji:**
+Lżejszy viewer (C++):
 
 ```bash
-git clone --recurse-submodules git@github.com:knmlprz/not_aura.git
+source ~/Web_Speech_remote_control/teleop_ws/install/setup.bash
+ros2 run teleop_moving_window desktop_screen_viewer_node --ros-args \
+  -p image_topic:=/xreal/camera/image_raw \
+  -p display_fps:=60.0 \
+  -p fullscreen:=true
 ```
+
+---
+
+## RViz (G1 + OAK)
+
+Z `Web_Speech_remote_control/README_g1.md`:
+
+- Fixed Frame: `pelvis`
+- Robot G1: **RobotModel**, Description Topic `/robot_description`
+- Kamera OAK (opcjonalnie drugi RobotModel): Description Topic `/oak/robot_description`
+
+---
+
+## Powiązane dokumenty
+
+| Dokument | Zawartość |
+|----------|-----------|
+| [../docs/README.md](../docs/README.md) | Standardy zespołu not_aura (Git, styl, ROS) |
+| `~/Web_Speech_remote_control/README_g1.md` | Bringup G1, serwisy, pilot |
+| `~/Web_Speech_remote_control/teleop_ws/src/teleop_moving_window/README.md` | Wirtualna kamera, streamy, markery |
