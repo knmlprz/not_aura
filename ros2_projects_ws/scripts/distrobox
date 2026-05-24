@@ -1,0 +1,112 @@
+#!/usr/bin/bash
+
+set -euo pipefail
+
+ros_distro="${1:-${ROS_DISTRO:-humble}}"
+if [[ "$ros_distro" != "humble" && "$ros_distro" != "jazzy" ]]; then
+    echo "Unsupported ROS distro: $ros_distro"
+    echo "Usage: $0 [humble|jazzy]"
+    exit 1
+fi
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+ws_dir="$(cd "$script_dir/.." && pwd)"
+container_name="ros2_projects_ws_${ros_distro}"
+distrobox_home="$ws_dir/.distrobox_${ros_distro}"
+env_host_path="/run/host${ws_dir}/scripts/ros2_env.bash"
+
+host_arch="$(uname -m)"
+case "$host_arch" in
+    x86_64|amd64)
+        default_ros_image="docker.io/osrf/ros:${ros_distro}-desktop-full"
+        ;;
+    aarch64|arm64)
+        default_ros_image="docker.io/arm64v8/ros:${ros_distro}-ros-base"
+        ;;
+    armv7l|armhf)
+        default_ros_image="docker.io/arm32v7/ros:${ros_distro}-ros-base"
+        ;;
+    *)
+        echo "Unsupported architecture '$host_arch'."
+        echo "Set ROS_DOCKER_IMAGE manually and retry."
+        exit 1
+        ;;
+esac
+ros_image="${ROS_DOCKER_IMAGE:-$default_ros_image}"
+
+additional_packages="iputils-ping nano vim alsa-utils alsa pulseaudio git git-man python3 python-is-python3 python3-pip usbutils"
+if [[ "$ros_distro" != "humble" ]]; then
+    additional_packages="$additional_packages unminimize"
+fi
+
+if ! command -v distrobox >/dev/null 2>&1; then
+    echo "distrobox is required but not found in PATH."
+    exit 1
+fi
+
+if ! command -v flatpak >/dev/null 2>&1; then
+    echo "Installing flatpak..."
+    if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y flatpak
+    elif command -v pacman >/dev/null 2>&1; then
+        sudo pacman -S --noconfirm flatpak
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y flatpak
+    else
+        echo "Unsupported platform. Install flatpak manually."
+        exit 1
+    fi
+fi
+
+if [[ ! -d "$distrobox_home" ]]; then
+    mkdir -p "$distrobox_home"
+    touch "$distrobox_home/.sudo_as_admin_successful"
+fi
+
+if [[ ! -e "$distrobox_home/.gitconfig" && -e "$HOME/.gitconfig" ]]; then
+    ln -s "$HOME/.gitconfig" "$distrobox_home/.gitconfig"
+fi
+if [[ ! -e "$distrobox_home/.ssh" && -e "$HOME/.ssh" ]]; then
+    ln -s "$HOME/.ssh" "$distrobox_home/.ssh"
+fi
+
+if distrobox list --no-color | tr -s ' ' | cut -d ' ' -f 3 | tail -n +2 | grep -q "^${container_name}$"; then
+    container_exists=1
+else
+    container_exists=0
+fi
+
+if [[ "$container_exists" -eq 0 ]]; then
+    echo "Creating Distrobox instance..."
+    echo "Using image: $ros_image"
+
+    nvidia=""
+    if command -v lspci >/dev/null 2>&1 && lspci | grep -qi nvidia; then
+        nvidia="--nvidia"
+    fi
+
+    init_hooks="chsh -s /usr/bin/bash $USER"
+    if [[ "$ros_distro" != "humble" ]]; then
+        init_hooks="$init_hooks && (yes | sudo unminimize)"
+    fi
+
+    distrobox create --image "$ros_image" --yes --name "$container_name" --home "$distrobox_home" --additional-packages "$additional_packages" --absolutely-disable-root-password-i-am-really-positively-sure --init-hooks "$init_hooks" $nvidia --no-entry --additional-flags "--mount type=bind,source=/dev/bus/usb,target=/dev/bus/usb"
+fi
+
+# Ensure env file is loaded from the container's ~/.bashrc (idempotent).
+distrobox enter "$container_name" -- bash -lc "
+if ! grep -q 'BEGIN ROS2_PROJECTS_WS_ENV' \"\$HOME/.bashrc\" 2>/dev/null; then
+cat >> \"\$HOME/.bashrc\" <<EOF
+
+# BEGIN ROS2_PROJECTS_WS_ENV
+export ROS_DISTRO=\"$ros_distro\"
+if [ -f \"$env_host_path\" ]; then
+    source \"$env_host_path\"
+fi
+# END ROS2_PROJECTS_WS_ENV
+EOF
+fi
+"
+
+distrobox enter "$container_name" -- /usr/bin/bash -i

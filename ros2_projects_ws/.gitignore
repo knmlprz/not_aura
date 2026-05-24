@@ -1,0 +1,23 @@
+__pycache__
+
+# Distrobox home directory
+/.distrobox*
+
+# Visual Studio Code configuration
+/.vscode
+/.cache
+
+# ROS 2 build and runtime artifacts
+/build
+/install
+/log
+/build_*
+/install_*
+/log_*
+/frames_*.gv
+/frames_*.pdf
+/robot_localization_debug.txt
+
+# Ignore everything in src except README.md
+/src/*
+!/src/README.md
