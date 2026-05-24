@@ -18,6 +18,4 @@ __pycache__
 /frames_*.pdf
 /robot_localization_debug.txt
 
-# Ignore everything in src except README.md
-/src/*
-!/src/README.md
+

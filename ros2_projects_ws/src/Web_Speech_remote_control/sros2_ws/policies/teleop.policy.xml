@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policy version="0.2.0"
+  xmlns:xi="http://www.w3.org/2001/XInclude">
+  <enclaves>
+    <enclave path="/teleop_policy/teleop_bridge">
+      <profiles>
+        <profile ns="/" node="teleop_bridge">
+          <xi:include href="common/node.xml"
+            xpointer="xpointer(/profile/*)"/>
+          <topics publish="ALLOW">
+            <topic>g1pilot/joy</topic>
+          </topics>
+        </profile>
+      </profiles>
+    </enclave>
+    <enclave path="/teleop_policy/teleop_twist_joy_node">
+      <profiles>
+        <profile ns="/" node="teleop_twist_joy_node">
+          <xi:include href="common/node.xml"
+            xpointer="xpointer(/profile/*)"/>
+          <topics publish="ALLOW">
+            <topic>cmd_vel</topic>
+          </topics>
+          <topics subscribe="ALLOW">
+            <topic>g1pilot/joy</topic>
+            <topic>joy</topic>
+            <topic>cmd_vel</topic>
+          </topics>
+        </profile>
+      </profiles>
+    </enclave>
+    <enclave path="/teleop_policy/twist_controller">
+      <profiles>
+        <profile ns="/" node="twist_controller">
+          <xi:include href="common/node.xml"
+            xpointer="xpointer(/profile/*)"/>
+          
+          <services reply="ALLOW" request="ALLOW">
+            <service>*</service>
+          </services>
+
+          <actions call="ALLOW" execute="ALLOW">
+            <action>*</action>
+          </actions>
+
+          <topics publish="ALLOW">
+            <topic>wheel_states</topic>
+            <topic>*</topic>
+          </topics>
+
+          <topics subscribe="ALLOW">
+            <topic>cmd_vel</topic>
+            <topic>*</topic>
+          </topics>
+
+        </profile>
+      </profiles>
+    </enclave>
+    <enclave path="/teleop_policy/mqtt_client">
+      <profiles>
+        <profile ns="/" node="mqtt_client">
+          <xi:include href="common/node.xml" xpointer="xpointer(/profile/*)"/>
+          
+          <services reply="ALLOW">
+            <service>~/is_connected</service>
+            <service>~/new_ros2mqtt_bridge</service>
+            <service>~/new_mqtt2ros_bridge</service>
+            </services>
+
+          <topics publish="ALLOW" subscribe="ALLOW">
+            <topic>/pong/primitive</topic>
+            <topic>/ping/ros</topic>
+            <topic>/mqtt_client/latencies/*</topic>
+            <topic>/rosout</topic>
+          </topics>
+          <topics publish="ALLOW" subscribe="ALLOW">
+            <topic>/ping/primitive</topic>
+            <topic>/ping/ros</topic>
+            <topic>/parameter_events</topic>
+          </topics>
+        </profile>
+      </profiles>
+    </enclave>
+  </enclaves>
+</policy>
