@@ -1,0 +1,3 @@
+# The receiver uses only the Python 3 standard library — no dependencies.
+# This file is intentionally empty (apart from this comment) to keep the
+# conventional Python project layout.

@@ -1,0 +1,12 @@
+services:
+  cot-receiver:
+    build: .
+    container_name: cot-receiver
+    # network_mode: host lets the container receive traffic directly on the usb0
+    # interface without port forwarding (NAT). Recommended on a Raspberry Pi.
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      BIND_HOST: "0.0.0.0"
+      PORT: "18999"
+      PROTO: "both"     # udp | tcp | both
