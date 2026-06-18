@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        UWAGA (z dokumentacji helloworld): w pluginie NIE wolno opakowywac realnych
+        Preference w <PreferenceCategory>, bo nie zostana zapisane. Pusty
+        PreferenceCategory na gorze pelni tylko role wizualnego naglowka.
+    -->
+    <PreferenceCategory android:title="@string/pref_title" />
+
+    <com.atakmap.android.gui.PanEditTextPreference
+        android:key="cotfwd_ip"
+        android:title="@string/pref_ip_title"
+        android:summary="@string/pref_ip_summary"
+        android:defaultValue="192.168.42.50"
+        android:inputType="text"
+        android:singleLine="true" />
+
+    <com.atakmap.android.gui.PanEditTextPreference
+        android:key="cotfwd_port"
+        android:title="@string/pref_port_title"
+        android:summary="@string/pref_port_summary"
+        android:defaultValue="18999"
+        android:inputType="number"
+        android:singleLine="true" />
+
+    <ListPreference
+        android:key="cotfwd_proto"
+        android:title="@string/pref_proto_title"
+        android:summary="@string/pref_proto_summary"
+        android:entries="@array/proto_entries"
+        android:entryValues="@array/proto_values"
+        android:defaultValue="UDP" />
+
+</PreferenceScreen>

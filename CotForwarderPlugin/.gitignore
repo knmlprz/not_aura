@@ -1,0 +1,28 @@
+# Build output
+/build/
+/app/build/
+/captures/
+
+# Gradle
+/.gradle/
+gradle-app.setting
+.gradletasknamecache
+
+# takdev plugin generated scratch (regenerated each build)
+/.takdev/
+
+# Machine-specific (paths, signing) — each dev creates their own (see README §4)
+local.properties
+
+# Android Studio / IntelliJ
+/.idea/
+*.iml
+*.iws
+*.ipr
+
+# Local emulator/test scratch artifacts
+/_emu/
+
+# OS
+.DS_Store
+Thumbs.db
